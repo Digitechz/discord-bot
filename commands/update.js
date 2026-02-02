@@ -2,11 +2,10 @@ const { initUser, updateStat, renderStats } = require("../stats");
 
 module.exports = {
   name: "update",
-  description: "Update character stats",
   async execute(message, args) {
     if (args.length < 3) {
       return message.reply(
-        "Usage: `!update <stat> <name> <value> [cap]`\nExample: `!update hp sora -5`"
+        "Usage: `!update <stat> <name> <value> [cap]`"
       );
     }
 
@@ -15,34 +14,26 @@ module.exports = {
     const value = parseInt(args[2]);
     const cap = args[3] ? parseInt(args[3]) : null;
 
-    if (isNaN(value)) {
-      return message.reply("Value must be a number.");
-    }
+    if (isNaN(value)) return message.reply("Value must be a number.");
 
     initUser(name);
     updateStat(name, stat, value, cap);
 
-    const statsMessage = renderStats(name);
+    const content = renderStats(name);
 
-    try {
-      if (message.reference) {
-        const oldMsg = await message.channel.messages.fetch(
-          message.reference.messageId
-        );
-
-        if (oldMsg.author.id === message.client.user.id) {
-          await oldMsg.edit(statsMessage);
-        } else {
-          await message.channel.send(statsMessage);
-        }
+    if (message.reference) {
+      const old = await message.channel.messages.fetch(
+        message.reference.messageId
+      );
+      if (old.author.id === message.client.user.id) {
+        await old.edit(content);
       } else {
-        await message.channel.send(statsMessage);
+        await message.channel.send(content);
       }
-
-      await message.reply(`Updated ${name}'s ${stat.toUpperCase()}`);
-    } catch (err) {
-      console.error(err);
-      message.reply("Failed to update stats.");
+    } else {
+      await message.channel.send(content);
     }
+
+    await message.reply(`Updated ${name}'s ${stat.toUpperCase()}`);
   }
 };
