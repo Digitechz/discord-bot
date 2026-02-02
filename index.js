@@ -45,4 +45,6 @@ client.on("messageCreate", message => {
 });
 
 // 5️⃣ Login
-client.login(process.env.BOT_TOKEN);
+console.log("TOKEN length:", process.env.TOKEN?.length);
+
+client.login(process.env.TOKEN);
