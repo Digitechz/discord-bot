@@ -4,11 +4,6 @@ module.exports = {
   name: "update",
   description: "Update character stats",
   async execute(message, args) {
-    // Usage:
-    // !update <stat> <name> <value> [cap]
-    // example: !update hp sora -5
-    // example: !update mp sora 5 20
-
     if (args.length < 3) {
       return message.reply(
         "Usage: `!update <stat> <name> <value> [cap]`\nExample: `!update hp sora -5`"
@@ -21,20 +16,15 @@ module.exports = {
     const cap = args[3] ? parseInt(args[3]) : null;
 
     if (isNaN(value)) {
-      return message.reply("❌ Value must be a number.");
+      return message.reply("Value must be a number.");
     }
 
-    // Initialize character if needed
     initUser(name);
-
-    // Update stat
     updateStat(name, stat, value, cap);
 
-    // Render stats bar
     const statsMessage = renderStats(name);
 
     try {
-      // If replying to a bot message, edit it
       if (message.reference) {
         const oldMsg = await message.channel.messages.fetch(
           message.reference.messageId
@@ -49,7 +39,10 @@ module.exports = {
         await message.channel.send(statsMessage);
       }
 
-      await message.reply(`✅ Updated **${name}**'s **${stat.toUpperCase()}**`);
+      await message.reply(`Updated ${name}'s ${stat.toUpperCase()}`);
     } catch (err) {
       console.error(err);
-      message.reply("❌ Faile
+      message.reply("Failed to update stats.");
+    }
+  }
+};
