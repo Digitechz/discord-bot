@@ -1,28 +1,55 @@
+const { initUser, updateStat, renderStats } = require("../stats");
+
 module.exports = {
   name: "update",
-  description: "Update a bot message by ID",
+  description: "Update character stats",
   async execute(message, args) {
-    if (args.length < 2) {
-      return message.reply("Usage: !update <messageID> <new content>");
+    // Usage:
+    // !update <stat> <name> <value> [cap]
+    // example: !update hp sora -5
+    // example: !update mp sora 5 20
+
+    if (args.length < 3) {
+      return message.reply(
+        "Usage: `!update <stat> <name> <value> [cap]`\nExample: `!update hp sora -5`"
+      );
     }
 
-    const messageID = args.shift(); // first arg is message ID
-    const newContent = args.join(" "); // rest is new content
+    const stat = args[0].toLowerCase();
+    const name = args[1];
+    const value = parseInt(args[2]);
+    const cap = args[3] ? parseInt(args[3]) : null;
+
+    if (isNaN(value)) {
+      return message.reply("❌ Value must be a number.");
+    }
+
+    // Initialize character if needed
+    initUser(name);
+
+    // Update stat
+    updateStat(name, stat, value, cap);
+
+    // Render stats bar
+    const statsMessage = renderStats(name);
 
     try {
-      // Fetch the message from the same channel
-      const msg = await message.channel.messages.fetch(messageID);
+      // If replying to a bot message, edit it
+      if (message.reference) {
+        const oldMsg = await message.channel.messages.fetch(
+          message.reference.messageId
+        );
 
-      // Make sure it's the bot's own message
-      if (msg.author.id !== message.client.user.id) {
-        return message.reply("I can only edit my own messages.");
+        if (oldMsg.author.id === message.client.user.id) {
+          await oldMsg.edit(statsMessage);
+        } else {
+          await message.channel.send(statsMessage);
+        }
+      } else {
+        await message.channel.send(statsMessage);
       }
 
-      await msg.edit(newContent);
-      message.reply("✅ Message updated!");
+      await message.reply(`✅ Updated **${name}**'s **${stat.toUpperCase()}**`);
     } catch (err) {
       console.error(err);
-      message.reply("❌ Could not find the message or edit it.");
-    }
-  },
-};
+      message.reply("❌ Faile
