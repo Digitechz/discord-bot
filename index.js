@@ -44,6 +44,29 @@ client.on("messageCreate", message => {
   }
 });
 
+const { initUser, updateStat, renderStats } = require("./stats");
+
+client.on("messageCreate", async message => {
+  if (!message.content.startsWith("!update")) return;
+
+  const args = message.content.split(" ");
+  const [, stat, user, value, cap] = args;
+
+  initUser(user);
+  updateStat(user, stat, parseInt(value), cap ? parseInt(cap) : null);
+
+  const content = renderStats(user);
+
+  if (message.reference) {
+    const msg = await message.channel.messages.fetch(message.reference.messageId);
+    await msg.edit(content);
+  } else {
+    await message.channel.send(content);
+  }
+
+  await message.reply(`✅ Updated ${user}'s ${stat}`);
+});
+
 // 5️⃣ Login
 console.log("TOKEN length:", process.env.TOKEN?.length);
 
