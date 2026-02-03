@@ -1,6 +1,6 @@
-const OpenAI = require("openai");
+const Groq = require("groq-sdk");
 
-const openai = new OpenAI({
+const groq = new Groq({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
@@ -9,37 +9,38 @@ module.exports = {
   description: "Talk to Steph (AI)",
   async execute(message, args) {
     if (!args.length) {
-      return message.reply("🧠 Talk to me. Try `!steph what should we do today?`");
+      return message.reply("💬 Say something to Steph~");
     }
 
     const userMessage = args.join(" ");
 
     try {
-      const response = await openai.chat.completions.create({
-        model: "gpt-4o-mini",
+      const chatCompletion = await groq.chat.completions.create({
+        model: "llama3-8b-8192",
         messages: [
           {
             role: "system",
-            content: `
-You are Steph.
-You are witty, emotionally intelligent, slightly teasing, supportive,
-and speak like a real human — not robotic.
-Keep replies concise unless the user asks for detail.
-`,
+            content:
+              "You are Steph, a witty, playful, intelligent female character. Speak naturally, casually, and like a real person. Be expressive but not cringe.",
           },
           {
             role: "user",
             content: userMessage,
           },
         ],
+        temperature: 0.8,
       });
 
-      const reply = response.choices[0].message.content;
-      await message.reply(reply);
+      const reply = chatCompletion.choices[0]?.message?.content;
 
+      if (!reply) {
+        return message.reply("🤯 Steph blanked out for a second… try again?");
+      }
+
+      await message.reply(reply);
     } catch (err) {
       console.error("Steph AI error:", err);
-      message.reply("❌ Steph’s brain glitched. Try again.");
+      message.reply("🧠 Steph’s brain overheated. Try again in a bit.");
     }
   },
 };
