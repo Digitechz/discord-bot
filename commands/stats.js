@@ -1,61 +1,52 @@
-const stats = {};
+const fs = require("fs");
+const path = "./stats.json";
 
-function initUser(user) {
-  if (!stats[user]) {
-    stats[user] = {
-      HP: { current: 20, max: 20 },
-      MP: { current: 20, max: 20 },
+function loadStats() {
+  if (!fs.existsSync(path)) return {};
+  return JSON.parse(fs.readFileSync(path, "utf8"));
+}
 
-      fatigue: 0,   // %
-      hunger: 100,  // %
+function saveStats(data) {
+  fs.writeFileSync(path, JSON.stringify(data, null, 2));
+}
 
+function initUser(name) {
+  const data = loadStats();
+
+  if (!data[name]) {
+    data[name] = {
+      hp: 20,
+      hpMax: 20,
+      mp: 20,
+      mpMax: 20,
       attack: 10,
-      defence: 10,
+      defense: 10,
       speed: 10,
       accuracy: 10,
-      luck: 0
+      luck: 0,
+      fatigue: 0,
+      energy: 100
     };
-  }
-  return stats[user];
-}
-
-// bar generator
-function bar(current, max, size = 10) {
-  const filled = Math.round((current / max) * size);
-  const empty = size - filled;
-  return "▰".repeat(filled) + "▱".repeat(empty);
-}
-
-function renderStats(user) {
-  const s = stats[user];
-
-  return `
-**${user}**
-❤️ HP ${bar(s.HP.current, s.HP.max)} (${s.HP.current}/${s.HP.max})
-🔮 MP ${bar(s.MP.current, s.MP.max)} (${s.MP.current}/${s.MP.max})
-
-⚔️ Attack: ${s.attack}
-🛡️ Defence: ${s.defence}
-🏃 Speed: ${s.speed}
-🎯 Accuracy: ${s.accuracy}
-🍀 Luck: ${s.luck}
-
-😵 Fatigue: ${bar(s.fatigue, 100)} (${s.fatigue}%)
-🍖 Hunger: ${bar(s.hunger, 100)} (${s.hunger}%)
-`.trim();
-}
-
-function updateStat(user, stat, value, cap = null) {
-  initUser(user);
-
-  if (stat === "HP" || stat === "MP") {
-    stats[user][stat].current = value;
-    if (cap !== null) stats[user][stat].max = cap;
-  } else if (stat === "fatigue" || stat === "hunger") {
-    stats[user][stat] = Math.max(0, Math.min(100, value));
-  } else {
-    stats[user][stat] = value;
+    saveStats(data);
   }
 }
 
-module.exports = { initUser, updateStat, renderStats };
+function applyFatigue(stat, fatigue) {
+  return Math.floor(stat * (100 - fatigue) / 100);
+}
+
+function renderStats(name) {
+  const data = loadStats();
+  const s = data[name];
+  if (!s) return null;
+
+  return {
+    ...s,
+    attackEff: applyFatigue(s.attack, s.fatigue),
+    defenseEff: applyFatigue(s.defense, s.fatigue),
+    speedEff: applyFatigue(s.speed, s.fatigue),
+    accuracyEff: applyFatigue(s.accuracy, s.fatigue),
+  };
+}
+
+module.exports = { initUser, renderStats, loadStats, saveStats };
