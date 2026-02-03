@@ -1,46 +1,42 @@
-const Groq = require("groq-sdk");
-
-const groq = new Groq({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+// commands/steph.js
+const fetch = require("node-fetch");
+const { getUserMemory, addUserMemory } = require("../stats/stephMemory");
 
 module.exports = {
   name: "steph",
-  description: "Talk to Steph (AI)",
+  description: "Talk to Steph AI",
   async execute(message, args) {
-    if (!args.length) {
-      return message.reply("💬 Say something to Steph~");
-    }
+    const userId = message.author.id;
+    const userInput = args.join(" ");
+    if (!userInput) return message.reply("💭 You need to say something!");
 
-    const userMessage = args.join(" ");
+    addUserMemory(userId, { role: "user", content: userInput });
+
+    const history = getUserMemory(userId);
 
     try {
-      const chatCompletion = await groq.chat.completions.create({
-        model: "llama3-8b-8192",
-        messages: [
-          {
-            role: "system",
-            content:
-              "You are Steph, a witty, playful, intelligent female character. Speak naturally, casually, and like a real person. Be expressive but not cringe.",
-          },
-          {
-            role: "user",
-            content: userMessage,
-          },
-        ],
-        temperature: 0.8,
+      // Call a free HuggingFace model
+      const response = await fetch("https://api-inference.huggingface.co/models/tiiuae/falcon-7b-instruct", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${process.env.HF_KEY}`,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          inputs: history.map(h => `${h.role === "user" ? "User" : "Steph"}: ${h.content}`).join("\n") + "\nSteph:"
+        })
       });
 
-      const reply = chatCompletion.choices[0]?.message?.content;
+      const data = await response.json();
+      if (!data || !data[0]?.generated_text) throw new Error("No response");
 
-      if (!reply) {
-        return message.reply("🤯 Steph blanked out for a second… try again?");
-      }
+      const reply = data[0].generated_text.split("Steph:").pop().trim();
+      addUserMemory(userId, { role: "steph", content: reply });
 
       await message.reply(reply);
     } catch (err) {
-      console.error("Steph AI error:", err);
-      message.reply("🧠 Steph’s brain overheated. Try again in a bit.");
+      console.error("Steph AI error:", err.message || err);
+      await message.reply("🧠 Steph’s brain overheated. Try again in a bit.");
     }
-  },
+  }
 };
