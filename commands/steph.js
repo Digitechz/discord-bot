@@ -1,18 +1,19 @@
 const fetch = (...args) =>
   import("node-fetch").then(({ default: fetch }) => fetch(...args));
 
+const MODEL = "mistralai/Mistral-7B-Instruct-v0.2";
+
 module.exports = {
   name: "steph",
-  description: "Talk to Steph",
   async execute(message, args) {
     try {
-      const prompt = args.join(" ");
-      if (!prompt) {
-        return message.reply("💭 Talk to me. I’m listening.");
+      const userInput = args.join(" ");
+      if (!userInput) {
+        return message.reply("💭 Say something. I’m literally right here.");
       }
 
-      const response = await fetch(
-        "https://router.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.2",
+      const res = await fetch(
+        `https://api-inference.huggingface.co/pipeline/text-generation/${MODEL}`,
         {
           method: "POST",
           headers: {
@@ -20,31 +21,32 @@ module.exports = {
             "Content-Type": "application/json"
           },
           body: JSON.stringify({
-            inputs: `You are Steph, a witty, playful, intelligent girl who replies like a real person.\nUser: ${prompt}\nSteph:`,
+            inputs: `You are Steph — witty, playful, smart, and human.\nUser: ${userInput}\nSteph:`,
             parameters: {
               max_new_tokens: 120,
               temperature: 0.8,
-              top_p: 0.9
+              top_p: 0.9,
+              return_full_text: false
             }
           })
         }
       );
 
-      if (!response.ok) {
-        const err = await response.text();
-        console.error("HF Error:", err);
-        return message.reply("🧠 Steph stared into the void and forgot how words work.");
+      if (!res.ok) {
+        const t = await res.text();
+        console.error("HF Error:", t);
+        return message.reply("🧠 Steph short-circuited mid-thought.");
       }
 
-      const data = await response.json();
-      const reply =
-        data?.[0]?.generated_text?.split("Steph:").pop()?.trim();
+      const data = await res.json();
+      const reply = data?.[0]?.generated_text?.trim();
 
       if (!reply) {
-        return message.reply("😶 Steph thought very hard and said nothing.");
+        return message.reply("😶 Steph forgot what she was saying.");
       }
 
       message.reply(reply);
+
     } catch (err) {
       console.error(err);
       message.reply("💥 Steph tripped over reality. Try again.");
