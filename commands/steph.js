@@ -1,42 +1,59 @@
-// commands/steph.js
 const fetch = require("node-fetch");
-const { getUserMemory, addUserMemory } = require("../stats/stephMemory");
 
 module.exports = {
   name: "steph",
-  description: "Talk to Steph AI",
+  description: "Talk to Steph",
   async execute(message, args) {
-    const userId = message.author.id;
-    const userInput = args.join(" ");
-    if (!userInput) return message.reply("💭 You need to say something!");
-
-    addUserMemory(userId, { role: "user", content: userInput });
-
-    const history = getUserMemory(userId);
-
     try {
-      // Call a free HuggingFace model
-      const response = await fetch("https://api-inference.huggingface.co/models/tiiuae/falcon-7b-instruct", {
-        method: "POST",
-        headers: {
-          "Authorization": `Bearer ${process.env.HF_KEY}`,
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          inputs: history.map(h => `${h.role === "user" ? "User" : "Steph"}: ${h.content}`).join("\n") + "\nSteph:"
-        })
-      });
+      if (message.author.bot) return;
+
+      const input = args.join(" ");
+      if (!input) {
+        return message.reply("Say something, I’m not a mind reader.");
+      }
+
+      const HF_KEY = process.env.HF_KEY;
+      if (!HF_KEY) {
+        return message.reply("Steph has no API key. I am brainless.");
+      }
+
+      const response = await fetch(
+        "https://api-inference.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.2",
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${HF_KEY}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            inputs: `<s>[INST] You are Steph.
+You speak like a real girl: witty, playful, slightly sarcastic, but kind.
+Short, natural replies. No assistant tone.
+
+User: ${input}
+Steph: [/INST]`,
+            parameters: {
+              max_new_tokens: 120,
+              temperature: 0.8,
+              top_p: 0.9,
+            },
+          }),
+        }
+      );
 
       const data = await response.json();
-      if (!data || !data[0]?.generated_text) throw new Error("No response");
+
+      if (!Array.isArray(data) || !data[0]?.generated_text) {
+        console.error("HF raw response:", data);
+        return message.reply("My brain stalled. Try again.");
+      }
 
       const reply = data[0].generated_text.split("Steph:").pop().trim();
-      addUserMemory(userId, { role: "steph", content: reply });
+      await message.reply(reply || "…I forgot what I was saying.");
 
-      await message.reply(reply);
     } catch (err) {
-      console.error("Steph AI error:", err.message || err);
-      await message.reply("🧠 Steph’s brain overheated. Try again in a bit.");
+      console.error("Steph error:", err);
+      message.reply("Steph crashed internally. Check logs.");
     }
-  }
+  },
 };
