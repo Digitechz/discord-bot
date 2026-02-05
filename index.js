@@ -1,21 +1,20 @@
 require("dotenv").config();
 const { Client, GatewayIntentBits } = require("discord.js");
 const fs = require("fs");
-const path = require("path");
 
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
     GatewayIntentBits.GuildMessages,
-    GatewayIntentBits.MessageContent,
-  ],
+    GatewayIntentBits.MessageContent
+  ]
 });
 
 // Load commands
 const commands = new Map();
 const commandFiles = fs
-  .readdirSync(path.join(__dirname, "commands"))
-  .filter(file => file.endsWith(".js"));
+  .readdirSync("./commands")
+  .filter(f => f.endsWith(".js"));
 
 for (const file of commandFiles) {
   const command = require(`./commands/${file}`);
@@ -30,16 +29,17 @@ client.on("messageCreate", async message => {
   if (message.author.bot) return;
   if (!message.content.startsWith("!")) return;
 
-  const args = message.content.slice(1).trim().split(/ +/);
+  const args = message.content.slice(1).trim().split(/\s+/);
   const commandName = args.shift().toLowerCase();
 
-  if (!commands.has(commandName)) return;
+  const command = commands.get(commandName);
+  if (!command) return;
 
   try {
-    await commands.get(commandName).execute(message, args);
+    await command.execute(message, args);
   } catch (err) {
-    console.error("COMMAND ERROR:", err);
-    message.reply("❌ Error executing command.");
+    console.error(`Command error [${commandName}]:`, err);
+    message.reply("❌ Command crashed. Check logs.");
   }
 });
 
