@@ -1,59 +1,68 @@
-const fetch = require("node-fetch");
+const fetch = (...args) =>
+  import('node-fetch').then(({ default: fetch }) => fetch(...args));
+
+/**
+ * Simple in-memory stats (NO external files)
+ */
+const stats = {
+  messages: 0,
+  lastUsed: null
+};
 
 module.exports = {
   name: "steph",
   description: "Talk to Steph",
+
   async execute(message, args) {
+    const prompt = args.join(" ");
+    if (!prompt) {
+      return message.reply("Say something to me, genius 🧠✨");
+    }
+
+    stats.messages++;
+    stats.lastUsed = new Date().toISOString();
+
     try {
-      if (message.author.bot) return;
-
-      const input = args.join(" ");
-      if (!input) {
-        return message.reply("Say something, I’m not a mind reader.");
-      }
-
-      const HF_KEY = process.env.HF_KEY;
-      if (!HF_KEY) {
-        return message.reply("Steph has no API key. I am brainless.");
-      }
-
       const response = await fetch(
-        "https://api-inference.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.2",
+        "https://router.huggingface.co/hf-inference/models/google/gemma-2-2b-it",
         {
           method: "POST",
           headers: {
-            Authorization: `Bearer ${HF_KEY}`,
-            "Content-Type": "application/json",
+            "Authorization": `Bearer ${process.env.HF_API_KEY}`,
+            "Content-Type": "application/json"
           },
           body: JSON.stringify({
-            inputs: `<s>[INST] You are Steph.
-You speak like a real girl: witty, playful, slightly sarcastic, but kind.
-Short, natural replies. No assistant tone.
-
-User: ${input}
-Steph: [/INST]`,
+            inputs: prompt,
             parameters: {
-              max_new_tokens: 120,
-              temperature: 0.8,
-              top_p: 0.9,
-            },
-          }),
+              max_new_tokens: 150,
+              temperature: 0.7
+            }
+          })
         }
       );
 
-      const data = await response.json();
-
-      if (!Array.isArray(data) || !data[0]?.generated_text) {
-        console.error("HF raw response:", data);
-        return message.reply("My brain stalled. Try again.");
+      if (!response.ok) {
+        const errText = await response.text();
+        console.error("HF Error:", errText);
+        return message.reply("Brain freeze 🧊 try again in a sec.");
       }
 
-      const reply = data[0].generated_text.split("Steph:").pop().trim();
-      await message.reply(reply || "…I forgot what I was saying.");
+      const data = await response.json();
+
+      const reply =
+        data?.[0]?.generated_text ||
+        data?.generated_text ||
+        "…I blanked out 😭";
+
+      await message.reply(reply);
 
     } catch (err) {
-      console.error("Steph error:", err);
-      message.reply("Steph crashed internally. Check logs.");
+      console.error("Steph crash:", err);
+      message.reply("I tripped over my own thoughts 🫠");
     }
   },
+
+  getStats() {
+    return stats;
+  }
 };
