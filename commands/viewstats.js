@@ -1,36 +1,50 @@
-const { initUser, renderStats } = require("../stats");
-const { EmbedBuilder } = require("discord.js");
+const fs = require("fs");
+const path = "./stats.json";
 
 module.exports = {
   name: "viewstats",
-  description: "View a character's stats",
+  description: "View stats for a character",
   execute(message, args) {
     if (!args[0]) {
-      return message.reply("❌ Usage: `!viewstats <CharacterName>`");
+      return message.reply(
+        "❌ Please provide a character name.\nExample: `!viewstats Sora`"
+      );
     }
 
-    const name = args[0];
-    initUser(name);
-    const s = renderStats(name);
+    const character = args[0];
 
-    if (!s) return message.reply("❌ Character not found.");
+    if (!fs.existsSync(path)) {
+      return message.reply("❌ No stats database found.");
+    }
 
-    const embed = new EmbedBuilder()
-      .setTitle(`📜 ${name}'s Stats`)
-      .setColor(0x8be9fd)
-      .addFields(
-        { name: "❤️ HP", value: `${s.hp}/${s.hpMax}`, inline: true },
-        { name: "🔮 MP", value: `${s.mp}/${s.mpMax}`, inline: true },
-        { name: "⚔️ Attack", value: `${s.attackEff} (${s.attack})`, inline: true },
-        { name: "🛡️ Defense", value: `${s.defenseEff} (${s.defense})`, inline: true },
-        { name: "⚡ Speed", value: `${s.speedEff} (${s.speed})`, inline: true },
-        { name: "🎯 Accuracy", value: `${s.accuracyEff} (${s.accuracy})`, inline: true },
-        { name: "🍀 Luck", value: `${s.luck}`, inline: true },
-        { name: "😵 Fatigue", value: `${s.fatigue}%`, inline: true },
-        { name: "🔋 Energy", value: `${s.energy}%`, inline: true }
-      )
-      .setFooter({ text: "Effective stats reduced by fatigue" });
+    const stats = JSON.parse(fs.readFileSync(path, "utf8"));
 
-    message.channel.send({ embeds: [embed] });
-  }
+    if (!stats[character]) {
+      return message.reply("❌ Could not find stats for that character.");
+    }
+
+    const s = stats[character];
+
+    // Helper to draw bars
+    const bar = (value, max = 20, size = 10) => {
+      const filled = Math.round((value / max) * size);
+      return "▰".repeat(filled) + "▱".repeat(size - filled);
+    };
+
+    const output = `
+**${character}**
+❤️ HP  ${bar(s.hp ?? 20)} (${s.hp ?? 20}/20)
+🔵 MP  ${bar(s.mp ?? 20)} (${s.mp ?? 20}/20)
+
+⚔️ ATK  ${s.attack ?? 10}
+🛡️ DEF  ${s.defence ?? 10}
+💨 SPD  ${s.speed ?? 10}
+🎯 ACC  ${s.accuracy ?? 10}
+🍀 LUCK ${s.luck ?? 0}
+
+😮‍💨 FATIGUE ${s.fatigue ?? 0}%
+`;
+
+    message.channel.send(output);
+  },
 };

@@ -1,39 +1,48 @@
-const { initUser, updateStat, renderStats } = require("../stats");
+const fs = require("fs");
+const path = "./stats.json";
 
 module.exports = {
-  name: "update",
-  async execute(message, args) {
+  name: "updatestats",
+  description: "Update a character stat",
+  execute(message, args) {
+    // Permission check (optional – remove if you want)
+    if (!message.member.permissions.has("Administrator")) {
+      return message.reply("❌ You are not allowed to use this command.");
+    }
+
     if (args.length < 3) {
       return message.reply(
-        "Usage: `!update <stat> <name> <value> [cap]`"
+        "Usage: `!updatestats <stat> <character> <value>`"
       );
     }
 
-    const stat = args[0].toLowerCase();
-    const name = args[1];
-    const value = parseInt(args[2]);
-    const cap = args[3] ? parseInt(args[3]) : null;
+    const stat = args[0].toLowerCase(); // s / d / etc
+    const character = args[1];
+    const value = Number(args[2]);
 
-    if (isNaN(value)) return message.reply("Value must be a number.");
-
-    initUser(name);
-    updateStat(name, stat, value, cap);
-
-    const content = renderStats(name);
-
-    if (message.reference) {
-      const old = await message.channel.messages.fetch(
-        message.reference.messageId
-      );
-      if (old.author.id === message.client.user.id) {
-        await old.edit(content);
-      } else {
-        await message.channel.send(content);
-      }
-    } else {
-      await message.channel.send(content);
+    if (Number.isNaN(value)) {
+      return message.reply("❌ Value must be a number.");
     }
 
-    await message.reply(`Updated ${name}'s ${stat.toUpperCase()}`);
-  }
+    // Load stats
+    let stats = {};
+    if (fs.existsSync(path)) {
+      stats = JSON.parse(fs.readFileSync(path, "utf8"));
+    }
+
+    // Init character if missing
+    if (!stats[character]) {
+      stats[character] = {};
+    }
+
+    // Update stat
+    stats[character][stat] = value;
+
+    // Save
+    fs.writeFileSync(path, JSON.stringify(stats, null, 2));
+
+    message.reply(
+      `✅ **${character}** → ${stat.toUpperCase()} updated to **${value}**`
+    );
+  },
 };
