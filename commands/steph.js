@@ -1,30 +1,18 @@
 const fetch = (...args) =>
-  import('node-fetch').then(({ default: fetch }) => fetch(...args));
-
-/**
- * Simple in-memory stats (NO external files)
- */
-const stats = {
-  messages: 0,
-  lastUsed: null
-};
+  import("node-fetch").then(({ default: fetch }) => fetch(...args));
 
 module.exports = {
   name: "steph",
   description: "Talk to Steph",
-
   async execute(message, args) {
-    const prompt = args.join(" ");
-    if (!prompt) {
-      return message.reply("Say something to me, genius 🧠✨");
-    }
-
-    stats.messages++;
-    stats.lastUsed = new Date().toISOString();
-
     try {
+      const prompt = args.join(" ");
+      if (!prompt) {
+        return message.reply("💭 Talk to me. I’m listening.");
+      }
+
       const response = await fetch(
-        "https://router.huggingface.co/hf-inference/models/google/gemma-2-2b-it",
+        "https://router.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.2",
         {
           method: "POST",
           headers: {
@@ -32,37 +20,34 @@ module.exports = {
             "Content-Type": "application/json"
           },
           body: JSON.stringify({
-            inputs: prompt,
+            inputs: `You are Steph, a witty, playful, intelligent girl who replies like a real person.\nUser: ${prompt}\nSteph:`,
             parameters: {
-              max_new_tokens: 150,
-              temperature: 0.7
+              max_new_tokens: 120,
+              temperature: 0.8,
+              top_p: 0.9
             }
           })
         }
       );
 
       if (!response.ok) {
-        const errText = await response.text();
-        console.error("HF Error:", errText);
-        return message.reply("Brain freeze 🧊 try again in a sec.");
+        const err = await response.text();
+        console.error("HF Error:", err);
+        return message.reply("🧠 Steph stared into the void and forgot how words work.");
       }
 
       const data = await response.json();
-
       const reply =
-        data?.[0]?.generated_text ||
-        data?.generated_text ||
-        "…I blanked out 😭";
+        data?.[0]?.generated_text?.split("Steph:").pop()?.trim();
 
-      await message.reply(reply);
+      if (!reply) {
+        return message.reply("😶 Steph thought very hard and said nothing.");
+      }
 
+      message.reply(reply);
     } catch (err) {
-      console.error("Steph crash:", err);
-      message.reply("I tripped over my own thoughts 🫠");
+      console.error(err);
+      message.reply("💥 Steph tripped over reality. Try again.");
     }
-  },
-
-  getStats() {
-    return stats;
   }
 };
