@@ -1,55 +1,55 @@
 const fetch = (...args) =>
   import("node-fetch").then(({ default: fetch }) => fetch(...args));
 
-const MODEL = "mistralai/Mistral-7B-Instruct-v0.2";
-
 module.exports = {
   name: "steph",
   async execute(message, args) {
     try {
       const userInput = args.join(" ");
       if (!userInput) {
-        return message.reply("💭 Say something. I’m literally right here.");
+        return message.reply("💭 Say something. I’m right here.");
       }
 
       const res = await fetch(
-        `https://api-inference.huggingface.co/pipeline/text-generation/${MODEL}`,
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${process.env.GOOGLE_API_KEY}`,
         {
           method: "POST",
           headers: {
-            "Authorization": `Bearer ${process.env.HF_API_KEY}`,
             "Content-Type": "application/json"
           },
           body: JSON.stringify({
-            inputs: `You are Steph — witty, playful, smart, and human.\nUser: ${userInput}\nSteph:`,
-            parameters: {
-              max_new_tokens: 120,
-              temperature: 0.8,
-              top_p: 0.9,
-              return_full_text: false
-            }
+            contents: [
+              {
+                parts: [
+                  {
+                    text: `You are Steph — witty, playful, intelligent, slightly teasing but helpful.\nUser: ${userInput}\nSteph:`
+                  }
+                ]
+              }
+            ]
           })
         }
       );
 
       if (!res.ok) {
         const t = await res.text();
-        console.error("HF Error:", t);
-        return message.reply("🧠 Steph short-circuited mid-thought.");
+        console.error("Gemini Error:", t);
+        return message.reply("🧠 Steph got confused.");
       }
 
       const data = await res.json();
-      const reply = data?.[0]?.generated_text?.trim();
+      const reply =
+        data?.candidates?.[0]?.content?.parts?.[0]?.text;
 
       if (!reply) {
-        return message.reply("😶 Steph forgot what she was saying.");
+        return message.reply("😶 Steph had nothing to say.");
       }
 
       message.reply(reply);
 
     } catch (err) {
       console.error(err);
-      message.reply("💥 Steph tripped over reality. Try again.");
+      message.reply("💥 Steph crashed. Try again.");
     }
   }
 };
